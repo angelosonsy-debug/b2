@@ -1,0 +1,72 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ما نطلبش الباكدج القديمة "tools" (هي اللي كانت بتوقّع الـ workflow)
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      # بيولّد Gradle Wrapper كامل (gradlew + jar) تقدر تنزّله من الـ Artifacts وتعمله commit
+      - name: Generate Gradle wrapper
+        continue-on-error: true
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Upload wrapper files
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-wrapper-files
+          path: |
+            gradlew
+            gradlew.bat
+            gradle/wrapper/gradle-wrapper.jar
+            gradle/wrapper/gradle-wrapper.properties
+          if-no-files-found: ignore
+
+      - name: Unit tests
+        run: gradle testDebugUnitTest --stacktrace
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-tracker-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      # آخر خطوة: لو فشلت يبقى الـ APK اتبنى (بيستخدم CDN كاحتياطي) بس مش أوفلاين
+      - name: Verify React is bundled
+        run: |
+          test -s app/src/main/assets/vendor/react.production.min.js
+          test -s app/src/main/assets/vendor/react-dom.production.min.js
+          unzip -l app/build/outputs/apk/debug/app-debug.apk > apk-files.txt
+          grep -q "assets/vendor/react-dom.production.min.js" apk-files.txt

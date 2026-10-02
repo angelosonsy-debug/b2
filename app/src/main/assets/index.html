@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>B2 Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#1B1918;color:#EDE7DC;font-family:'Tajawal',sans-serif;-webkit-tap-highlight-color:transparent}
+button{cursor:pointer;font-family:inherit;border:none;background:none;color:inherit}
+input,textarea{font-family:inherit}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#3A3733;border-radius:2px}
+.fade{animation:fi .18s ease}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.pulse{animation:pl 1.2s ease-in-out infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.addEventListener('error',function(e){
+  var el=document.getElementById('fatal');
+  if(!el){el=document.createElement('div');el.id='fatal';el.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:999;background:#C87464;color:#1B1918;padding:8px 12px;font:12px monospace;direction:ltr;max-height:30vh;overflow:auto';document.body.appendChild(el);}
+  el.textContent='JS error: '+(e.message||'unknown')+(e.filename?' @ '+String(e.filename).split('/').pop()+':'+e.lineno:'');
+});
+</script>
+<script src="vendor/react.production.min.js"></script>
+<script>window.React||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"><\/script>')</script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script>window.ReactDOM||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"><\/script>')</script>
+<script>if(!window.React||!window.ReactDOM){document.getElementById('root').innerHTML='<div style="padding:40px 20px;text-align:center;color:#EDE7DC;font-family:sans-serif;line-height:2">تعذّر تحميل مكتبة الواجهة (React).<br>اتصل بالإنترنت مرة واحدة وأعد فتح التطبيق.</div>';}</script>
+<script>
+'use strict';
+const {useState,useEffect,useRef,useMemo,createElement:h,Fragment} = React;
+
+const C={bg:'#1B1918',sf:'#242220',rs:'#2C2A27',br:'#3A3733',
+  am:'#C9974B',amd:'#8A6E3E',amf:'rgba(201,151,75,.15)',
+  tl:'#5E8C82',tlf:'rgba(94,140,130,.15)',
+  rd:'#C87464',rdf:'rgba(200,116,100,.15)',
+  pu:'#8E6BAF',puf:'rgba(142,107,175,.15)',
+  bl:'#6888B8',blf:'rgba(104,136,184,.15)',
+  tx:'#EDE7DC',dm:'#A69C8D',ft:'#6E655A'};
+const FM="'JetBrains Mono',monospace";
+
+// ─── WEEK CONFIG ───
+const WC=[
+  {ph:1,theme:"تعرّف على الروتين",focus:"Listening + Shadowing",gr:"Present Perfect vs Past Simple",tip:"I have worked here / I started in 2022",grAr:"الفرق بين Present Perfect و Past Simple",listenTopic:"daily routine English listening"},
+  {ph:1,theme:"الحياة اليومية",focus:"Speaking Continuity",gr:"Present Perfect vs Past Simple",tip:"Have you ever? / Yes, last year",grAr:"Present Perfect مع ever never already yet",listenTopic:"everyday life English podcast BBC"},
+  {ph:1,theme:"بناء الطلاقة",focus:"Fluency",gr:"Conditionals 1 & 2",tip:"If I practice / If I had time",grAr:"الجمل الشرطية النوع الأول والثاني",listenTopic:"fluency English speaking tips"},
+  {ph:1,theme:"كلام بدون توقف",focus:"Eliminate Pausing",gr:"Conditionals 1 & 2",tip:"Unless / As long as",grAr:"unless و as long as في الشرط",listenTopic:"English conversation practice intermediate"},
+  {ph:2,theme:"المواضيع التقنية",focus:"Technical Opinion",gr:"Modal Verbs",tip:"must / might / could / should",grAr:"Modal Verbs للاستنتاج والاحتمال",listenTopic:"technology English listening podcast"},
+  {ph:2,theme:"الرأي والحجة",focus:"Argue & Justify",gr:"Modal Verbs Past",tip:"should have / could have / must have",grAr:"Modal Verbs مع الماضي",listenTopic:"opinion discussion English intermediate"},
+  {ph:2,theme:"الروابط والتواصل",focus:"Logical Flow",gr:"Connectors",tip:"Although / However / As a result",grAr:"روابط الجمل connectors",listenTopic:"connectors linking words English BBC"},
+  {ph:2,theme:"القصص والروايات",focus:"Storytelling",gr:"Connectors Advanced",tip:"Nevertheless / In addition / Despite",grAr:"روابط متقدمة للحجة والإضافة",listenTopic:"storytelling narrative English intermediate"},
+  {ph:3,theme:"الإنجليزي التقني",focus:"Technical Precision",gr:"Reported Speech",tip:"He said that / She told me to",grAr:"الكلام المنقول Reported Speech",listenTopic:"technical English listening B2"},
+  {ph:3,theme:"شرح الأفكار المعقدة",focus:"Complex Explanation",gr:"Reported Speech Questions",tip:"He asked whether / She wondered if",grAr:"الأسئلة في الكلام المنقول",listenTopic:"complex ideas explanation English B2"},
+  {ph:3,theme:"مواقف الشغل",focus:"Professional Communication",gr:"Passive Voice",tip:"It was fixed / has been deployed",grAr:"المبني للمجهول Passive Voice",listenTopic:"professional English workplace listening"},
+  {ph:3,theme:"الأداء على مستوى B2",focus:"B2 Performance Test",gr:"Advanced B2 Structures",tip:"Not only / The more / Had I known",grAr:"التراكيب المتقدمة B2 advanced structures",listenTopic:"B2 English advanced listening test"},
+];
+
+const DPAT=[
+  ['listening','speaking','writing'],
+  ['speaking','listening','writing'],
+  ['listening','speaking','writing'],
+  ['speaking','listening','writing'],
+  ['listening','speaking','writing'],
+  ['grammar','speaking','writing'],
+  ['speaking','listening','writing'],
+];
+
+const GOALS=["Understand the main idea of a short video without subtitles. Summarize it in 2 sentences.", "Speak 30 seconds about your day — don't pause to translate. Keep going no matter what.", "Learn 3 new phrases and use each one in a spoken sentence immediately after learning.", "Describe your last project in 5 simple sentences. Keep it clear and don't overthink.", "Watch a 3-minute video twice: with subtitles, then without. Catch more each time.", "Write 3 correct Present Perfect sentences + 3 Past Simple sentences about your experience.", "Retell everything you practiced this week in 2 minutes. No notes — just speak freely.", "Listen and identify 3 specific details — not just the main idea. Details make the difference.", "Speak 45 seconds without any Arabic words. Replace them with English alternatives.", "Review your phrases from this week. Use 2 of them naturally in a speaking session.", "Answer 'What have you been working on lately?' for a full minute without stopping.", "Shadow a native speaker — pause after every sentence and repeat it exactly.", "Write 5 sentences naturally mixing Present Perfect and Past Simple.", "Record yourself for 1 minute. Listen back and identify one repeated error.", "Listen without subtitles and explain the main idea in your own words immediately after.", "Speak 1 full minute about what you'd do with an extra free day. No translation pauses.", "Add 2 new phrases. Recall all phrases from weeks 1–2 from memory without looking.", "Practice 5 conditional questions — ask yourself and answer each one naturally.", "Listen to the same clip twice without subtitles. Estimate comprehension both times.", "Write 3 first conditionals + 3 second conditionals meaningful to your actual life.", "Retell your week in 90 seconds including at least one conditional used naturally.", "Identify the speaker's opinion in a video — not just the facts they mention.", "Speak 90 seconds about a real decision you made recently. Don't stop.", "Use 3 phrases from this phase naturally in one session — make them feel automatic.", "Describe a challenge you faced using if / unless / as long as.", "Listen to the same clip 3 times without subtitles. Improve comprehension each time.", "Write a paragraph that uses both conditional types naturally — not like a grammar exercise.", "Checkpoint Day: speak 2 minutes on any topic. Note your biggest fluency challenge honestly.", "Understand a technical video and explain the main point in plain, clear English.", "Give your opinion on a tech topic with at least 2 supporting reasons — 90 seconds.", "Learn 2 technical phrases and use each one naturally in a real sentence.", "Discuss a tech topic using might/could/must — speculate about what might happen.", "Follow a fast-speech native video — aim to catch 70% or more of the content.", "Write 5 modal sentences about a real tech or work situation you know personally.", "Summarize a tech video you watched this week in 3 precise, clear sentences.", "Identify why the speaker said what they said — not just what was said.", "Give your opinion on a tech topic for 2 full minutes — justify every point you make.", "Find 2 new expressions in today's content and use each in a sentence today.", "Challenge an idea using 3 different modals: might, should, can't.", "Listen to a podcast without subtitles — catch the main argument and 2 supporting details.", "Write 4 modal sentences speculating about a situation you're personally familiar with.", "Checkpoint Day: summarize a video and give your opinion in 2 minutes total.", "Listen and notice how the speaker links ideas. Note every connector word they use.", "Tell a personal story with a clear beginning, middle, and end. 90 seconds minimum.", "Focus on 3 connectors today: in addition, however, as a result. Use all 3 naturally.", "Connect 5 different ideas using 5 different connectors. Speak it naturally, not scripted.", "Watch a structured talk and map out exactly how the speaker connects each main point.", "Write a paragraph using although, however, despite, and therefore placed correctly.", "Retell a story from this week using at least 4 different connectors throughout.", "Understand the full structure of a talk: intro → main points → conclusion.", "Speak for 2 minutes and deliberately use connectors to link each idea to the next.", "Review your connector expressions and add 2 new discourse markers to your list.", "Argue a point, then counter-argue it. Use on the other hand and nevertheless.", "Listen to a debate and identify the main argument and the main counter-argument.", "Write a structured 5-sentence response with clear logical flow using connectors.", "Checkpoint Day: give a 2-minute structured talk on a topic you know well.", "Understand technical vocabulary in context. Note any unfamiliar terms you encounter.", "Explain a technical concept clearly to a non-expert — 2 full minutes.", "Add 2 professional phrases from today's content to your vocabulary list.", "Report what a colleague or speaker said using reported speech accurately.", "Listen to a tech podcast — aim for 80% comprehension without subtitles.", "Write 3 reported speech sentences about a real or imagined conversation.", "Summarize a technical article or video in 3 precise, well-chosen sentences.", "Follow a complex explanation — identify all the key steps and the final conclusion.", "Explain how something works for 2 minutes — logically, clearly, without jargon.", "Review your reported speech phrases and use them naturally in context today.", "Discuss a complex topic and report what you have read or heard about it.", "Listen to native tech content — focus on catching specific facts and details.", "Write a short technical explanation naturally incorporating reported speech.", "Checkpoint Day: explain a process and report feedback on it in 2 minutes.", "Understand workplace conversation at near-native speed. Aim for 85% catch rate.", "Do a 2-minute mock job interview — answer each question clearly and fluently.", "Learn 2 professional workplace expressions and use each one today.", "Role-play a work meeting — explain a problem clearly and propose a solution.", "Listen to a real job interview video — catch both the questions and the answers.", "Write a short, clear professional email or message in English.", "Simulate a full 3-minute work scenario — explain, discuss, and reach a conclusion.", "Understand a complex argument and identify the speaker's exact position.", "Speak on a topic for 3 minutes with a clear intro, body, and conclusion.", "Review your top 10 most-used expressions from the entire 12-week program.", "Conduct a full mock interview — answer 5 questions naturally and fluently.", "Listen to an authentic B2-level talk — catch 85% or more without subtitles.", "Write a structured paragraph demonstrating your full B2 grammar range.", "Final speaking test: 3 minutes on a technical topic you know well. Give it your best."];
+
+const AIP=["Ask me to describe my typical day in detail. Don't interrupt. After I finish, identify 3 grammar patterns you noticed.", "Set a 30-second challenge: I'll talk about my day. If I pause more than 5 seconds, say 'keep going'. Afterwards tell me which topic words I avoided.", "Give me 3 common phrases related to work or daily life. I'll use each in a sentence. Tell me if it sounds natural.", "Ask me to describe my last project. Ask follow-up questions to make me elaborate on parts I rush through.", "Describe a video topic to me in text. Ask questions about details to see how much I actually understood.", "Give me 6 situations. I'll choose Present Perfect or Past Simple for each and explain why.", "Ask me what English I practiced this week. I'll answer for 2 minutes. Suggest one focus for next week.", "Ask me detailed follow-up questions — not just 'what happened' but who, when, how, and why.", "Challenge me to speak 45 seconds without any Arabic. Give me a topic and stop me if I slip.", "Show me 3 phrases from my list. Ask me to use each in a different natural sentence.", "Ask 'What have you been working on lately?' then 4 follow-up questions to keep me talking.", "Read me a sentence slowly. I'll repeat it immediately. Check my rhythm and word stress.", "Give me 5 situations. I'll write a sentence for each mixing tenses. Tell me which feel natural.", "Ask me to describe my week in exactly 1 minute. Afterwards, tell me my single most repeated grammatical pattern.", "Give me a topic description. Ask questions to check if I understood the details — no hints.", "Ask me 'If you had one completely free week, what would you do?' Keep following up until I've spoken 1 full minute.", "Test my vocabulary from weeks 1–2. Show me a phrase and ask for the meaning — I can't look it up.", "Roleplay a conversation where your questions naturally require conditional answers. 5 exchanges minimum.", "Describe a listening scenario. I'll tell you what I understood and what was unclear. Fill in the gaps.", "I'll write 6 conditional sentences. Tell me: 1st or 2nd conditional? Any grammar errors?", "Ask me to summarize my week. Push me to include at least 2 conditional sentences naturally.", "Give me your opinion on a topic. Ask 'Do you agree?' After I respond, push back and make me defend my position.", "Ask me about a difficult decision I made. If I pause more than 5 seconds, give me one hint word.", "Challenge me to use 3 specific vocabulary phrases from this phase in one continuous answer. Count them.", "Give me a scenario with a challenge. I'll describe it using if/unless/as long as. Check the grammar.", "Describe something twice: once complex, once simpler. Ask what I understood each time.", "I'll write a conditional paragraph. Tell me: does it sound natural or like a grammar exercise?", "Be a friend I haven't talked to in a month. I must respond only in English for 2 full minutes.", "Give me a technical problem. Ask me to explain possible causes using modal verbs: might, could, must, should.", "Ask my opinion on a technical topic. After 90 seconds, summarize back to me what I said.", "Give me 2 technical phrases. I'll use them in sentences. Tell me if usage sounds native or translated.", "Start a technical discussion. Every time I make a claim, challenge it so I have to use modals.", "Describe a dense technical topic to me. Ask me what I caught — facts, numbers, specific details.", "I'll write 5 modal sentences about work. Tell me if each expresses the right level of certainty.", "Ask me to summarize a technical topic I know. Give feedback on vocabulary range and grammar accuracy.", "Ask me to explain why something is designed a certain way. Push me to give multiple distinct reasons.", "Give me a controversial tech opinion. I must argue for or against it for 2 full minutes — commit to a side.", "Ask me to find 2 expressions from content I consumed today and use them in a conversation with you.", "Take the opposite position on everything I say. I must use a modal verb in every response.", "Give me a hypothetical situation. I'll speculate using modals. Evaluate both grammar and logic.", "Check my 4 modal sentences: is the grammar correct? Does each express the intended meaning?", "Ask me to summarize a video I've seen, then give my opinion. Combine retelling and opinion in 2 minutes.", "Tell me a short story. I must retell it using connector words. Count how many different connectors I use.", "Ask me to tell a personal story about any challenge. After I finish, ask 'What happened next?'", "Give me 5 disconnected sentences. I must connect them logically using 5 different connectors.", "Start a casual conversation. I must use although, however, as a result, and in addition — one each.", "Give me a topic. Ask me to plan my structure using connectors before I speak.", "Review my paragraph: does each sentence connect logically? Are connectors used correctly and naturally?", "Ask me to tell a 2-minute story about a challenge. Afterwards, list exactly which connectors I used.", "Give me a topic. I argue for it 1 minute, then against it 1 minute. Push me if arguments are weak.", "Ask me to speak 2 minutes with clear structure: intro, 2 main points, conclusion. Check the structure.", "Give me a discourse marker. I must make a natural sentence with it in 10 seconds.", "We debate a topic you choose. Push back on every point. I must use connectors to structure responses.", "Describe a complex situation. Ask me to map the sequence: first, then, as a result, finally.", "Evaluate my structured writing: clear structure? Connectors placed correctly? Does it flow?", "Conduct a 2-minute Q&A. I must answer fully and use connectors to link every idea.", "Give me a technical term. I must define it in plain English as if explaining to someone non-technical.", "Ask me to explain a concept from my field for 2 minutes. Ask 3 follow-up questions after.", "Give me a professional expression. I'll use it. Tell me if the context and usage feel natural.", "Give me a conversation scenario. I'll restate what was said in reported speech. Check tense changes.", "Give me a dense technical paragraph. Ask me 4 comprehension questions — no re-reading allowed.", "I'll write 3 reported speech sentences. Check: are the tense shifts correct? Does it sound natural?", "Ask me to explain a multi-step technical process clearly. I must sequence it without jargon.", "Give me a complex process to explain. I must sequence it clearly with signposting language.", "Ask me to explain something complex to someone non-technical. Interrupt when I use unexplained jargon.", "Give me a quote from a tech article. I'll rephrase it in reported speech. Check accuracy.", "Ask me to discuss a technical topic and report what experts or colleagues have said about it.", "Read me a dense technical passage quickly. Ask me 5 specific questions about what was said.", "Review my technical explanation: does it use reported speech naturally, or does it feel forced?", "Ask me to describe a project I've worked on and report the feedback I received on it.", "Conduct a professional job interview. Ask 5 varied questions. Evaluate clarity, confidence, relevance.", "Ask me to pitch a project idea in exactly 2 minutes. Give feedback on structure and vocabulary.", "Give me a professional workplace expression. I'll use it in a realistic workplace scenario.", "Roleplay: you're a client with a serious problem. I'm responsible for solving it. 3-minute conversation.", "Describe a workplace situation quickly. Ask comprehension questions about people, actions, outcomes.", "Review my professional email: Is it clear? Is the tone appropriate? Would it work professionally?", "Roleplay a full work meeting: you raise a technical issue, I explain, we discuss, reach conclusion.", "Conduct a full mock interview. 5 questions about background, skills, and goals. Evaluate critically.", "Give me a topic. I speak 3 minutes: intro, 2 main points, conclusion. Evaluate structure and vocabulary.", "Ask me to recall top expressions from 12 weeks — any 10. I must use 5 of them in sentences.", "Full 5-question technical job interview. Evaluate clarity, vocabulary range, and grammatical accuracy.", "Give me a complex fast-paced scenario description. Ask 5 specific questions. Evaluate comprehension.", "Evaluate my writing: grammar range, vocabulary level B1 vs B2, structure quality, naturalness.", "Final B2 speaking test: 3 minutes on a technical topic of my choice. Give detailed feedback."];
+
+const VM=["راجع العبارات المتراكمة — استخدم واحدة في كلامك اليوم.","أضف عبارة جديدة واستخدمها فوراً بصوتك.","راجع 5 عبارات قديمة واستخدم اثنتين اليوم.","اكتب جملة شخصية لكل عبارة أضفتها الأسبوع.","أضف تعبيرين تقنيين واستخدمهم مع AI.","راجع عبارات الشهر — كام واحدة بتيجي تلقائياً؟","أضف عبارة رابط جديدة واستخدمها في أكتر من جملة.","راجع كل الـ connectors واستخدم 3 في قصة.","أضف تعبير مهني جديد واستخدمه في جملة عن شغلك.","راجع العبارات المهنية — أيها جاية تلقائياً؟","راجع أفضل 10 عبارات في البرنامج واستخدم 5 منهم.","مراجعة شاملة: 15 دقيقة على أهم ما تعلمته."];
+
+const GD={
+  1:[{s:"I have started this job last month.",ok:false,ex:"❌ 'last month' = وقت محدد ماضي → Past Simple\n✅ الصح: 'I started this job last month.'"},
+     {s:"She has never visited Cairo.",ok:true,ex:"✅ 'never' = تجربة حياة → Present Perfect صح"},
+     {s:"Did you ever try sushi?",ok:false,ex:"❌ 'ever' مع تجارب الحياة → Present Perfect\n✅ الصح: 'Have you ever tried sushi?'"},
+     {s:"I worked here since 2020.",ok:false,ex:"❌ 'since' دايماً مع Present Perfect\n✅ الصح: 'I have worked here since 2020.'"},
+     {s:"He finished the report two days ago.",ok:true,ex:"✅ 'two days ago' = وقت محدد → Past Simple صح"}],
+  2:[{s:"Have you seen this film yet?",ok:true,ex:"✅ 'yet' مع Present Perfect صح"},
+     {s:"She has called me yesterday.",ok:false,ex:"❌ 'yesterday' = وقت محدد → Past Simple\n✅ الصح: 'She called me yesterday.'"},
+     {s:"We just finished the meeting.",ok:false,ex:"❌ 'just' → Present Perfect\n✅ الصح: 'We have just finished the meeting.'"},
+     {s:"I haven't spoken to him this week.",ok:true,ex:"✅ 'this week' (الأسبوع لسه مخلصش) → Present Perfect صح"},
+     {s:"They have left Egypt in 2019.",ok:false,ex:"❌ 'in 2019' = وقت محدد → Past Simple\n✅ الصح: 'They left Egypt in 2019.'"}],
+  3:[{s:"If I study harder, I will improve.",ok:true,ex:"✅ 1st Conditional — موقف ممكن في المستقبل صح"},
+     {s:"If I would have more time, I practice daily.",ok:false,ex:"❌ 'would' مش بيجي في الـ if clause\n✅ الصح: 'If I had more time, I would practice daily.'"},
+     {s:"Unless you practice, you won't improve.",ok:true,ex:"✅ 'unless' = 'if not' — 1st Conditional صح"},
+     {s:"If I am you, I would try harder.",ok:false,ex:"❌ 2nd Conditional محتاج 'were' مش 'am'\n✅ الصح: 'If I were you, I would try harder.'"},
+     {s:"I'll call you if I finish early.",ok:true,ex:"✅ 1st Conditional — الترتيب ممكن يتعكس صح"}],
+  4:[{s:"As long as you practice, your English will improve.",ok:true,ex:"✅ 'As long as' = شرط مستمر — 1st Conditional صح"},
+     {s:"If I had more money, I will travel.",ok:false,ex:"❌ 2nd Conditional — لازم 'would' مش 'will'\n✅ الصح: 'If I had more money, I would travel.'"},
+     {s:"Unless she studies, she would fail.",ok:false,ex:"❌ خلط بين نوعين\n✅ الصح: 'Unless she studies, she will fail.'"},
+     {s:"If you heat water to 100°C, it boils.",ok:true,ex:"✅ Zero Conditional — حقيقة علمية صح"},
+     {s:"I would call you if I will need help.",ok:false,ex:"❌ 2nd Conditional — past tense في الـ if clause\n✅ الصح: 'I would call you if I needed help.'"}],
+  5:[{s:"She must be at home — her car is outside.",ok:true,ex:"✅ 'must' = استنتاج منطقي قوي صح"},
+     {s:"It might rains tomorrow.",ok:false,ex:"❌ بعد Modal مفيش s أبداً\n✅ الصح: 'It might rain tomorrow.'"},
+     {s:"He could have forgotten the meeting.",ok:true,ex:"✅ 'could have + past participle' = احتمال في الماضي صح"},
+     {s:"They should to call us first.",ok:false,ex:"❌ مفيش 'to' بعد Modal أبداً\n✅ الصح: 'They should call us first.'"},
+     {s:"This can't be the right address.",ok:true,ex:"✅ 'can't' = استحالة منطقية صح"}],
+  6:[{s:"She must have left — the door is locked.",ok:true,ex:"✅ 'must have + past participle' = استنتاج قوي عن الماضي صح"},
+     {s:"He might be working late tonight.",ok:true,ex:"✅ 'might be + ing' = احتمال في الحاضر صح"},
+     {s:"They couldn't have arrived yet — it's too soon.",ok:true,ex:"✅ 'couldn't have' = استحالة في الماضي صح"},
+     {s:"You should have told me earlier.",ok:true,ex:"✅ 'should have' = انتقاد أو ندم على تصرف ماضي صح"},
+     {s:"It must to be very difficult for him.",ok:false,ex:"❌ مفيش 'to' بعد Modal\n✅ الصح: 'It must be very difficult for him.'"}],
+  7:[{s:"Although it was raining, we went out.",ok:true,ex:"✅ 'Although' يدخل الجملة الثانوية المتناقضة صح"},
+     {s:"Despite the rain, but we went out.",ok:false,ex:"❌ مش ممكن تجمع 'despite' مع 'but'\n✅ الصح: 'Despite the rain, we went out.'"},
+     {s:"However, the results were disappointing.",ok:true,ex:"✅ 'However' في أول الجملة كـ discourse marker صح"},
+     {s:"She worked hard. As a result, she passed.",ok:true,ex:"✅ 'As a result' يربط السبب بالنتيجة صح"},
+     {s:"In spite of he was tired, he continued.",ok:false,ex:"❌ 'In spite of' + noun/gerund\n✅ الصح: 'In spite of being tired, he continued.'"}],
+  8:[{s:"On the other hand, there are advantages.",ok:true,ex:"✅ 'On the other hand' = النقطة المقابلة صح"},
+     {s:"Nevertheless, we decided to continue.",ok:true,ex:"✅ 'Nevertheless' = رغم ذلك — أكثر رسمية صح"},
+     {s:"Furthermore, the cost is also high.",ok:false,ex:"❌ 'Furthermore' يضيف فـ 'also' زيادة\n✅ الصح: 'Furthermore, the cost is high.'"},
+     {s:"In addition to be expensive, it's slow.",ok:false,ex:"❌ 'In addition to' + gerund\n✅ الصح: 'In addition to being expensive, it's slow.'"},
+     {s:"The project failed. Consequently, we lost funding.",ok:true,ex:"✅ 'Consequently' = نتيجة رسمية صح"}],
+  9:[{s:"She said that she was working on it.",ok:true,ex:"✅ Reported Speech: 'is' → 'was' (backshift) صح"},
+     {s:"He told me he will call tomorrow.",ok:false,ex:"❌ Backshift مطلوب\n✅ الصح: 'He told me he would call the next day.'"},
+     {s:"They asked whether I had seen the report.",ok:true,ex:"✅ Indirect question + backshift صح"},
+     {s:"She mentioned to enjoy her work.",ok:false,ex:"❌ 'mention' + that-clause\n✅ الصح: 'She mentioned that she enjoyed her work.'"},
+     {s:"He claimed that the results were accurate.",ok:true,ex:"✅ 'claimed' + backshifted tense صح"}],
+  10:[{s:"She told that she was leaving.",ok:false,ex:"❌ 'tell' لازم يجي بعده object\n✅ الصح: 'She told me that she was leaving.'"},
+      {s:"He asked me where I had been.",ok:true,ex:"✅ Indirect question: ترتيب طبيعي + backshift صح"},
+      {s:"They reported that the system has crashed.",ok:false,ex:"❌ Backshift: has → had\n✅ الصح: 'They reported that the system had crashed.'"},
+      {s:"She said she would think about it.",ok:true,ex:"✅ 'will' → 'would' في Reported Speech صح"},
+      {s:"He announced to resign immediately.",ok:false,ex:"❌ 'announce' + that-clause\n✅ الصح: 'He announced that he would resign.'"}],
+  11:[{s:"The report was written by the manager.",ok:true,ex:"✅ Passive: subject + was + past participle صح"},
+      {s:"The issue has been resolved.",ok:true,ex:"✅ Present Perfect Passive — شائع في التكنولوجيا صح"},
+      {s:"The meeting was cancelled by someone.",ok:false,ex:"❌ لو الفاعل مجهول احذفه\n✅ الصح: 'The meeting was cancelled.'"},
+      {s:"The documents are being reviewed currently.",ok:false,ex:"❌ ترتيب الـ adverb\n✅ الصح: 'The documents are currently being reviewed.'"},
+      {s:"All tasks had been completed before the deadline.",ok:true,ex:"✅ Past Perfect Passive صح"}],
+  12:[{s:"Not only did she pass, but she also got top marks.",ok:true,ex:"✅ Inversion بعد 'Not only' صح"},
+      {s:"Had I known, I would have acted differently.",ok:true,ex:"✅ 3rd Conditional مع inversion بدل 'if' صح"},
+      {s:"The more you practice, the more better you get.",ok:false,ex:"❌ مش double comparative\n✅ الصح: 'The more you practice, the better you get.'"},
+      {s:"No sooner had she arrived than it started raining.",ok:true,ex:"✅ Inversion بعد 'No sooner' صح"},
+      {s:"Rarely I have seen such dedication.",ok:false,ex:"❌ Inversion مطلوب\n✅ الصح: 'Rarely have I seen such dedication.'"}],
+};
+
+const CP={
+  14:{title:"Checkpoint — نهاية أسبوعين",qs:[{q:"اتكلم دقيقتين عن أي موضوع بدون توقف.",type:"speaking",labels:["وقفت كتير جداً","وقفت أحياناً","استمريت معظم الوقت","وقفت قليلاً فقط","بدون توقف تقريباً ✓"]},{q:"كام % فهمت من آخر فيديو بدون subtitles؟",type:"listening",input:true,unit:"%"},{q:"اكتب 5 جمل صح: Present Perfect + Past Simple.",type:"grammar",labels:["1-2 صح","3 صح","4 صح","5 صح","5 صح وطبيعية ✓"]}]},
+  28:{title:"Checkpoint — نهاية الشهر",qs:[{q:"اتكلم 90 ثانية عن قرار صعب مع Conditionals.",type:"speaking",labels:["وقفت كتير","conditionals أخطاء","بعضها صح","معظمها صح","طلاقة + conditionals طبيعية ✓"]},{q:"اسمع 5 دقايق بدون subtitles — كام % فهمت؟",type:"listening",input:true,unit:"%"},{q:"اكتب فقرة 5 جمل بـ conditionals طبيعية.",type:"grammar",labels:["لا conditionals","1","2","3+ صح","طبيعية تماماً ✓"]}]},
+  42:{title:"Checkpoint — منتصف البرنامج",qs:[{q:"اتكلم دقيقتين تقني مع Modal Verbs.",type:"speaking",labels:["لا modals","1 modal","2-3 modals","3+ بعضها غلط","3+ صح وطبيعية ✓"]},{q:"شاهد tech video 5 دقايق — كام تفصيلة اتذكرت؟",type:"listening",input:true,unit:"تفصيلة"},{q:"اكتب فقرة: modals + connectors + Present Perfect.",type:"grammar",labels:["عنصر واحد","عنصرين","3 بعضها أخطاء","3 صح","3 صح وطبيعية ✓"]}]},
+  56:{title:"Checkpoint — نهاية Phase 2",qs:[{q:"احكِ قصة شخصية دقيقتين بـ connectors واضحة.",type:"speaking",labels:["لا connectors","1-2","3","4+ بعضها خطأ","4+ صح وطبيعية ✓"]},{q:"اسمع debate — كام % فهمت؟",type:"listening",input:true,unit:"%"},{q:"اكتب 4 جمل Reported Speech صح.",type:"grammar",labels:["1 صح","2 صح","3 صح","4 صح","4 صح + تنوع ✓"]}]},
+  70:{title:"Checkpoint — Phase 3 Progress",qs:[{q:"اشرح concept تقني لشخص غير متخصص — دقيقتين.",type:"speaking",labels:["تقني صعب","بسّط قليلاً","بسّط معظمه","واضح تقريباً","واضح تماماً ✓"]},{q:"اسمع tech talk 8 دقايق — كام % فهمت؟",type:"listening",input:true,unit:"%"},{q:"اكتب فقرة: Passive + Reported Speech.",type:"grammar",labels:["لا structures","Passive فقط","Reported فقط","كلاهما بعض أخطاء","كلاهما صح ✓"]}]},
+  84:{title:"الاختبار النهائي — B2",qs:[{q:"اتكلم 3 دقايق — intro + نقطتين + نتيجة.",type:"speaking",labels:["أقل من دقيقة","دقيقة ونص","دقيقتين","3 دقايق مع توقف","3 دقايق طلاقة ✓"]},{q:"اسمع authentic B2 content 10 دقايق — كام % فهمت؟",type:"listening",input:true,unit:"%"},{q:"اكتب فقرة B2 كاملة.",type:"grammar",labels:["B1 فقط","B1+ بعض B2","B2 بعض أخطاء","B2 صح معظمها","B2 صح كلها ✓"]}]},
+};
+
+// ─── STATE ───
+const SKEY='b2v7';
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function defS(){return{version:7,currentDay:1,dailyRecords:{},lastCompleted:null};}
+function loadS(){
+  try{
+    for(const k of[SKEY,'b2v6','b2v5','b2v4','b2v3']){
+      const r=localStorage.getItem(k);
+      if(!r)continue;
+      const p=JSON.parse(r);
+      if(p.version>=7)return p;
+      const s=defS();
+      if(p.currentDay)s.currentDay=p.currentDay;
+      if(p.lastCompleted)s.lastCompleted=p.lastCompleted;
+      if(p.dailyRecords)s.dailyRecords=p.dailyRecords;
+      return s;
+    }
+  }catch{}
+  return defS();
+}
+function saveS(s){
+  try{
+    const raw=JSON.stringify(s);
+    localStorage.setItem(SKEY,raw);
+    if(localStorage.getItem(SKEY)!==raw)throw new Error('verify failed');
+    window.__saveFailed=false;
+    return true;
+  }catch(e){
+    window.__saveFailed=true;
+    try{window.dispatchEvent(new Event('b2-save-failed'));}catch(_){}
+    return false;
+  }
+}
+function cSt(t){const s=new Set(t||[]);if(s.has('core')&&s.has('optional'))return'strong';if(s.has('core')&&s.has('secondary'))return'normal';if(s.has('core'))return'partial';if(s.has('minimum'))return'minimum';return'not_started';}
+function isDone(st){return['minimum','partial','normal','strong'].includes(st);}
+function gapDays(ds){if(!ds)return 999;return Math.max(0,Math.floor((new Date()-new Date(ds+'T00:00:00'))/86400000));}
+function bridgeCall(fn){
+  const args=Array.prototype.slice.call(arguments,1);
+  try{
+    const raw=window.AndroidBridge[fn].apply(window.AndroidBridge,args);
+    const r=JSON.parse(raw);
+    return(r&&typeof r==='object')?r:{ok:false,code:'bad_response',message:'رد غير مفهوم من التطبيق'};
+  }catch(e){return{ok:false,code:'bridge_error',message:'خطأ في الاتصال بالتطبيق: '+((e&&e.message)||e)};}
+}
+function exportData(s){
+  const json=JSON.stringify(s,null,2);
+  const name='b2-backup-'+today()+'.json';
+  if(typeof window.AndroidBridge!=='undefined'){
+    const r=bridgeCall('shareBackup',name,json);
+    return r.ok?'✓ اختار مكان حفظ النسخة الاحتياطية':'❌ '+(r.message||'فشل إنشاء النسخة');
+  }
+  try{
+    const b=new Blob([json],{type:'application/json'});
+    const u=URL.createObjectURL(b);
+    const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);
+    return '✓ تم تحميل النسخة الاحتياطية';
+  }catch(e){return '❌ فشل التحميل: '+((e&&e.message)||e);}
+}
+function cleanBackup(d){
+  if(!d||typeof d!=='object'||Array.isArray(d))return null;
+  if(!Number.isInteger(d.currentDay)||d.currentDay<1||d.currentDay>84)return null;
+  if(!d.dailyRecords||typeof d.dailyRecords!=='object'||Array.isArray(d.dailyRecords))return null;
+  if(d.lastCompleted!=null&&typeof d.lastCompleted!=='string')return null;
+  const recs={};
+  for(const k of Object.keys(d.dailyRecords)){
+    const r=d.dailyRecords[k];
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!r||typeof r!=='object'||Array.isArray(r))return null;
+    if(r.completedTasks!=null&&!Array.isArray(r.completedTasks))return null;
+    recs[k]=r;
+  }
+  return{version:7,currentDay:d.currentDay,dailyRecords:recs,lastCompleted:d.lastCompleted||null};
+}
+function importData(file,cb){
+  const r=new FileReader();
+  r.onload=function(e){
+    let clean=null;
+    try{clean=cleanBackup(JSON.parse(e.target.result));}catch(err){clean=null;}
+    if(clean){try{const cur=localStorage.getItem(SKEY);if(cur)localStorage.setItem('b2_pre_import_backup',cur);}catch(err){}}
+    cb(clean);
+  };
+  r.onerror=function(){cb(null);};
+  r.readAsText(file);
+}
+
+function getDayPlan(n){
+  if(n<1||n>84)return null;
+  const week=Math.ceil(n/7),dw=(n-1)%7,cfg=WC[week-1],pat=DPAT[dw];
+  const listDur=cfg.ph===1?8:cfg.ph===2?12:15;
+  const speakDur=cfg.ph===1?8:cfg.ph===2?12:15;
+  const writeDur=8;
+  const gramDur=10;
+  const tasks={
+    listening:{taskId:'listening',skill:'listening',i:'🎧',n:'استماع',c:'#5E8C82',
+      desc:cfg.ph===1?'اسمع مرة مع subtitles، بعدين مرة من غيرها':cfg.ph===2?'اسمع من غير subtitles وقيّم فهمك':'native speed — 85% target',dur:listDur},
+    speaking:{taskId:'speaking',skill:'speaking',i:'🗣',n:'كلام',c:'#C9974B',
+      desc:['اتكلم 30-45 ثانية عن موقف يومي','أعطِ رأيك مع 2 سبب — 90 ثانية','Role-play موقف شغل — 2-3 دقايق'][cfg.ph-1],dur:speakDur},
+    writing:{taskId:'writing',skill:'writing',i:'✍️',n:'كتابة',c:'#8E6BAF',
+      desc:['اكتب 3-5 جمل صحيحة','اكتب فقرة 5-7 جمل مع connectors','اكتب فقرة احترافية 7-10 جمل'][cfg.ph-1],dur:writeDur},
+    grammar:{taskId:'grammar',skill:'grammar',i:'🧠',n:'جرامر',c:'#C87464',
+      desc:cfg.gr+' — Drill + فيديو شرح',dur:gramDur},
+  };
+  const coreSk=pat[0], secSk=pat[1], optSk=pat[2];
+  return{
+    day:n,week,phase:cfg.ph,theme:cfg.theme,focus:cfg.focus,grammar:cfg.gr,
+    grammarTip:cfg.tip,grammarAr:cfg.grAr,listenTopic:cfg.listenTopic,
+    checkpoint:n%14===0,goal:GOALS[n-1],aiPrompt:AIP[n-1],vocabMission:VM[week-1],
+    grammarDrill:GD[week]||null,checkpointData:CP[n]||null,
+    core:tasks[coreSk]||tasks.listening,
+    secondary:tasks[secSk]||tasks.speaking,
+    optional:tasks[optSk]||tasks.writing,
+    minimum:{taskId:'minimum',skill:coreSk,i:tasks[coreSk]?.i||'⚡',n:tasks[coreSk]?.n||'تدريب',c:tasks[coreSk]?.c||'#5E8C82',
+      desc:{listening:'اسمع 5 دقايق وافهم الفكرة الرئيسية',speaking:'اتكلم دقيقة متواصلة عن أي موضوع',writing:'اكتب 3 جمل صحيحة',grammar:'اعمل 3 جمل بالقاعدة الجديدة'}[coreSk]||'5 دقايق',dur:5}};
+}
+
+// ─── UI HELPERS ───
+function div(style,...k){return h('div',{style},...k);}
+function btn(style,onClick,...k){return h('button',{style,onClick},...k);}
+function span(style,t){return h('span',{style},t);}
+function Bar({v,t,c}){const p=Math.min(100,Math.round(v/Math.max(t,1)*100));return div({height:4,background:C.br,borderRadius:2},div({width:p+'%',height:'100%',background:c||C.am,borderRadius:2,transition:'width .4s'}));}
+function Badge({st}){const m={not_started:{l:'لم يبدأ',bg:C.sf,c:C.ft},minimum:{l:'✓ Min',bg:C.tlf,c:C.tl},partial:{l:'◐ جارٍ',bg:C.amf,c:C.am},normal:{l:'✓ Normal',bg:C.amf,c:C.am},strong:{l:'★ Strong',bg:C.puf,c:C.pu}}[st]||{l:st,bg:C.sf,c:C.ft};return h('span',{style:{background:m.bg,color:m.c,padding:'2px 8px',borderRadius:12,fontSize:11,fontFamily:FM,fontWeight:700}},m.l);}
+function Toast({msg}){return msg?div({position:'fixed',bottom:82,left:'50%',transform:'translateX(-50%)',background:C.am,color:C.bg,padding:'10px 20px',borderRadius:20,fontSize:13,fontWeight:700,boxShadow:'0 4px 20px rgba(0,0,0,.4)',whiteSpace:'nowrap',zIndex:300},msg):null;}
+function Timer({mins}){
+  const [secs,setSecs]=useState(mins*60),[run,setRun]=useState(false),ref=useRef();
+  useEffect(()=>{if(run){ref.current=setInterval(()=>setSecs(s=>{if(s<=1){clearInterval(ref.current);setRun(false);return 0;}return s-1;}),1000);}else clearInterval(ref.current);return()=>clearInterval(ref.current);},[run]);
+  const m=Math.floor(secs/60),s=secs%60;
+  return div({display:'flex',alignItems:'center',gap:8},
+    btn({background:run?C.rd:C.tl,color:C.bg,borderRadius:8,padding:'8px 14px',fontSize:13,fontWeight:700,minWidth:90},()=>setRun(r=>!r),(run?'⏸ ':'▶ ')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')),
+    div({flex:1,height:3,background:C.br,borderRadius:2},div({width:((1-secs/(mins*60))*100)+'%',height:'100%',background:C.tl,borderRadius:2,transition:'width 1s linear'})),
+    secs===0?span({fontSize:12,color:C.tl},'✓ خلص!'):null);
+}
+
+// ─── LINKS (direct — no website detours) ───
+const ANDROID=/Android/i.test(navigator.userAgent||'');
+// Hasiltee deep link — بعد ما تفعّل الـ deep link في التطبيق عدّل القيم دي
+const HASILTEE_SCHEME='hasiltee';
+const HASILTEE_PACKAGE=''; // مثال: com.yourname.hasiltee
+const BBC_PLAYLIST='https://www.youtube.com/playlist?list=PLcetZ6gSk96-FECmH9l7Vlx5VDigvgZpt'; // BBC 6 Minute English — القائمة الرسمية
+const BBC_CHANNEL_SEARCH='https://www.youtube.com/@bbclearningenglish/search?query=';
+const SP_VIEWS_YEAR='CAMSBAgFEAE%3D'; // الأكتر مشاهدة — آخر سنة — فيديو
+const SP_VIEWS_ALL='CAM%3D';         // الأكتر مشاهدة — كل الأوقات
+const LT=['daily routine','everyday life','fluency','conversation','technology','opinions','linking words','storytelling','work','explaining ideas','workplace','job interview'];
+function ytSearch(q,sp){return 'https://www.youtube.com/results?search_query='+encodeURIComponent(q)+'&sp='+sp;}
+function copyText(text){
+  let ok=false;
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();ta.select();ta.setSelectionRange(0,text.length);
+    ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){ok=false;}
+  if(!ok){
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(function(){});ok=true;}}catch(e){}
+  }
+  return ok;
+}
+// بعد الضغط على رابط يفتح تطبيق: لو الصفحة لسه ظاهرة بعد ثانيتين يبقى التطبيق ما اتفتحش
+function useLaunchCheck(){
+  const [failed,setFailed]=useState(false);
+  const t=useRef(null);
+  function start(){
+    setFailed(false);
+    clearTimeout(t.current);
+    let left=false;
+    const onVis=function(){if(document.visibilityState==='hidden')left=true;};
+    document.addEventListener('visibilitychange',onVis);
+    t.current=setTimeout(function(){
+      document.removeEventListener('visibilitychange',onVis);
+      if(!left&&document.visibilityState==='visible')setFailed(true);
+    },2000);
+  }
+  return [failed,start];
+}
+function LinkBtn({href,icon,title,sub,color}){
+  return h('a',{href,target:'_blank',rel:'noreferrer',
+    style:{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',background:'rgba(0,0,0,.2)',border:'1px solid '+color+'66',borderRadius:10,textDecoration:'none',color:C.tx,marginTop:8}},
+    div({width:40,height:40,borderRadius:9,background:color+'22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0},icon),
+    div({flex:1},div({fontSize:13.5,fontWeight:700,color:color},title),sub?div({fontSize:11,color:C.ft,marginTop:2,lineHeight:1.5},sub):null),
+    span({fontSize:18,color:C.ft},'↗'));
+}
+function GrammarLinks({plan}){
+  const q='شرح '+plan.grammarAr+' بالعربي';
+  return div(null,
+    h(LinkBtn,{href:ytSearch(q,SP_VIEWS_YEAR),icon:'🎬',title:'فيديو شرح القاعدة بالعربي',sub:'مرتّبة بالأكتر مشاهدة — آخر سنة',color:C.rd}),
+    h(LinkBtn,{href:ytSearch(q,SP_VIEWS_ALL),icon:'🔥',title:'أشهر فيديوهات الشرح (كل الأوقات)',sub:'لو نتايج السنة قليلة — الأعلى مشاهدة على الإطلاق',color:C.rd}));
+}
+function ListeningLinks({plan}){
+  const topic=LT[(plan.week-1)%LT.length];
+  return div(null,
+    h(LinkBtn,{href:BBC_PLAYLIST,icon:'🎧',title:'BBC 6 Minute English — القائمة الرسمية',sub:'حلقات 6 دقايق بنطق واضح — اختار أي حلقة',color:C.tl}),
+    h(LinkBtn,{href:BBC_CHANNEL_SEARCH+encodeURIComponent('6 minute english '+topic),icon:'🔎',title:'حلقات BBC عن موضوع: '+topic,sub:'بحث جوه قناة BBC Learning English نفسها',color:C.tl}));
+}
+function WebChatGPTBtn({text,label}){
+  const [msg,setMsg]=useState('');
+  const [failed,startCheck]=useLaunchCheck();
+  const canShare=typeof navigator.share==='function';
+  const openHref=ANDROID
+    ?'intent://chatgpt.com/#Intent;scheme=https;package=com.openai.chatgpt;S.browser_fallback_url='+encodeURIComponent('https://chatgpt.com/')+';end'
+    :'https://chatgpt.com/';
+  function doShare(){
+    const copied=copyText(text);
+    navigator.share({text:text}).then(function(){setMsg('✓ اتبعت — اختار ChatGPT');}).catch(function(e){
+      if(e&&e.name==='AbortError')setMsg(copied?'اتنسخ — افتح ChatGPT والصق':'');
+      else setMsg(copied?'المشاركة مش متاحة — البرومبت اتنسخ، افتح ChatGPT والصق':'النسخ مشتغلش — اضغط مطولاً على النص فوق وانسخه');
+    });
+  }
+  function doCopy(){setMsg(copyText(text)?'✓ اتنسخ':'النسخ مشتغلش — اضغط مطولاً على النص فوق وانسخه');}
+  function doOpen(){copyText(text);setMsg('اتنسخ — بيفتح ChatGPT...');startCheck();}
+  const mainStyle={display:'block',width:'100%',textAlign:'center',padding:'13px 0',background:C.am,color:C.bg,borderRadius:9,fontWeight:700,fontSize:14,textDecoration:'none',border:'none'};
+  const smallStyle={flex:1,textAlign:'center',padding:'10px 0',background:'rgba(0,0,0,.25)',border:'1px solid rgba(201,151,75,.4)',color:C.am,borderRadius:9,fontWeight:700,fontSize:12.5,textDecoration:'none'};
+  return div({background:C.amf,border:'1px solid rgba(201,151,75,.4)',borderRadius:10,padding:14,marginTop:8},
+    div({fontSize:13,color:C.tx,lineHeight:1.8,marginBottom:12,fontStyle:'italic',background:'rgba(0,0,0,.2)',padding:'10px 12px',borderRadius:8,userSelect:'text',WebkitUserSelect:'text',whiteSpace:'pre-line'},text),
+    canShare
+      ?btn(mainStyle,doShare,'📤 '+label)
+      :h('a',{href:openHref,onClick:doOpen,target:ANDROID?undefined:'_blank',rel:'noreferrer',style:mainStyle},'📋 انسخ وافتح ChatGPT'),
+    div({display:'flex',gap:8,marginTop:8},
+      btn(smallStyle,doCopy,'📋 نسخ فقط'),
+      h('a',{href:openHref,onClick:doOpen,target:ANDROID?undefined:'_blank',rel:'noreferrer',style:smallStyle},'↗ افتح ChatGPT')),
+    msg?div({fontSize:12,color:C.am,marginTop:8,lineHeight:1.7},msg):null,
+    failed?div({fontSize:12,color:C.rd,marginTop:6,lineHeight:1.7},'المتصفح ما فتحش تطبيق ChatGPT. البرومبت اتنسخ — افتح ChatGPT من الموبايل والصقه. أو استخدم زرار "'+label+'" فوق (بيفتح قايمة المشاركة).'):null);
+}
+// ─── Native (Android app) versions — بيستخدموا AndroidBridge ───
+const NATIVE=typeof window.AndroidBridge!=='undefined';
+const HKEY='b2_hasiltee_pkg';
+function getHPkg(){try{return localStorage.getItem(HKEY)||'';}catch(e){return '';}}
+function setHPkg(p){try{localStorage.setItem(HKEY,p);}catch(e){}}
+function NativeChatGPTBtn({text}){
+  const [msg,setMsg]=useState(null);
+  function send(){const r=bridgeCall('shareToChatGPT',text);setMsg({ok:r.ok,t:(r.ok?'✓ ':'❌ ')+(r.message||(r.ok?'تم':'فشل'))});}
+  function copy(){const r=bridgeCall('copyText',text);setMsg({ok:r.ok,t:r.ok?'✓ اتنسخ':'❌ '+(r.message||'النسخ فشل')});}
+  return div({background:C.amf,border:'1px solid rgba(201,151,75,.4)',borderRadius:10,padding:14,marginTop:8},
+    div({fontSize:13,color:C.tx,lineHeight:1.8,marginBottom:12,fontStyle:'italic',background:'rgba(0,0,0,.2)',padding:'10px 12px',borderRadius:8,userSelect:'text',WebkitUserSelect:'text',whiteSpace:'pre-line'},text),
+    btn({display:'block',width:'100%',textAlign:'center',padding:'13px 0',background:C.am,color:C.bg,borderRadius:9,fontWeight:700,fontSize:14,border:'none'},send,'🤖 افتح ChatGPT بالبرومبت'),
+    btn({display:'block',width:'100%',textAlign:'center',padding:'10px 0',marginTop:8,background:'rgba(0,0,0,.25)',border:'1px solid rgba(201,151,75,.4)',color:C.am,borderRadius:9,fontWeight:700,fontSize:12.5},copy,'📋 نسخ فقط'),
+    msg?div({fontSize:12,color:msg.ok?C.am:C.rd,marginTop:8,lineHeight:1.7},msg.t):null);
+}
+function ChatGPTBtn(props){return NATIVE?h(NativeChatGPTBtn,props):h(WebChatGPTBtn,props);}
+function NativeHasilteeBtn(){
+  const [msg,setMsg]=useState(null);
+  const [picker,setPicker]=useState(false);
+  const [apps,setApps]=useState([]);
+  const [q,setQ]=useState('حصيل');
+  const [saved,setSaved]=useState(getHPkg());
+  function say(ok,t){setMsg({ok:ok,t:t});}
+  function openPicker(){
+    const r=bridgeCall('listApps');
+    if(r.ok&&Array.isArray(r.data)){setApps(r.data);setPicker(true);}
+    else say(false,'❌ '+(r.message||'تعذّر قراءة قايمة التطبيقات'));
+  }
+  function launch(p){
+    const r=bridgeCall('openApp',p);
+    if(r.ok){say(true,'✓ '+(r.message||'تم'));return;}
+    say(false,'❌ '+(r.message||'فشل الفتح'));
+    if(r.code==='not_installed'||r.code==='invalid_package')openPicker();
+  }
+  function onMain(){
+    let p=saved;
+    if(!p){try{p=window.AndroidBridge.hasilteePackage();}catch(e){p='';}}
+    launch(p);
+  }
+  function choose(p){setHPkg(p);setSaved(p);setPicker(false);launch(p);}
+  const ql=q.trim().toLowerCase();
+  const list=apps.filter(function(a){return !ql||(a.label||'').toLowerCase().indexOf(ql)>=0||(a.pkg||'').toLowerCase().indexOf(ql)>=0;}).slice(0,40);
+  return div(null,
+    btn({display:'flex',width:'100%',alignItems:'center',justifyContent:'center',gap:8,padding:'12px 0',background:C.blf,border:'1px solid rgba(104,136,184,.5)',borderRadius:10,color:C.bl,fontWeight:700,fontSize:14,marginTop:10},onMain,'📱 افتح تطبيق حصيلتي'),
+    saved?btn({display:'block',margin:'8px auto 0',fontSize:12,color:C.ft,textDecoration:'underline'},openPicker,'تغيير التطبيق المربوط'):null,
+    msg?div({fontSize:12,color:msg.ok?C.tl:C.rd,marginTop:8,lineHeight:1.8},msg.t):null,
+    picker?div({className:'fade',background:'rgba(0,0,0,.25)',borderRadius:10,padding:12,marginTop:10},
+      div({fontSize:13,color:C.tx,marginBottom:8},'اختار حصيلتي من التطبيقات المثبتة:'),
+      h('input',{value:q,onChange:function(e){setQ(e.target.value);},placeholder:'ابحث بالاسم...',style:{width:'100%',padding:'10px 12px',background:C.rs,border:'1px solid '+C.br,borderRadius:8,color:C.tx,fontSize:14,outline:'none'}}),
+      list.length===0?div({fontSize:12,color:C.ft,padding:'10px 0'},'مفيش نتايج — امسح البحث لعرض كل التطبيقات'):
+      div({display:'flex',flexDirection:'column',gap:6,marginTop:8,maxHeight:260,overflowY:'auto'},
+        ...list.map(function(a){return btn({textAlign:'right',padding:'10px 12px',background:C.sf,border:'1px solid '+C.br,borderRadius:8,color:C.tx,fontSize:13},function(){choose(a.pkg);},
+          div(null,div({fontWeight:700},a.label||a.pkg),div({fontSize:10,color:C.ft,fontFamily:FM,direction:'ltr',textAlign:'left'},a.pkg)));}))):null);
+}
+function HasilteeBtn(){return NATIVE?h(NativeHasilteeBtn):h(WebHasilteeBtn);}
+const MANIFEST_SNIPPET='<intent-filter>\n  <action android:name="android.intent.action.VIEW"/>\n  <category android:name="android.intent.category.DEFAULT"/>\n  <category android:name="android.intent.category.BROWSABLE"/>\n  <data android:scheme="hasiltee" android:host="open"/>\n</intent-filter>';
+function WebHasilteeBtn(){
+  const [failed,startCheck]=useLaunchCheck();
+  const [help,setHelp]=useState(false);
+  const href=(ANDROID&&HASILTEE_PACKAGE)
+    ?'intent://open#Intent;scheme='+HASILTEE_SCHEME+';package='+HASILTEE_PACKAGE+';end'
+    :HASILTEE_SCHEME+'://open';
+  return div(null,
+    h('a',{href,onClick:startCheck,style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'12px 0',background:C.blf,border:'1px solid rgba(104,136,184,.5)',borderRadius:10,color:C.bl,fontWeight:700,fontSize:14,textDecoration:'none',marginTop:10}},'📱 افتح تطبيق حصيلتي'),
+    failed?div({className:'fade',fontSize:12,color:C.rd,marginTop:8,lineHeight:1.8},
+      'حصيلتي ما اتفتحش. المتصفح مش بيقدر يفتح أي تطبيق إلا لو التطبيق نفسه مسجّل رابط '+HASILTEE_SCHEME+'://open (deep link).',
+      btn({display:'block',marginTop:6,color:C.bl,fontSize:12,textDecoration:'underline'},()=>setHelp(x=>!x),help?'اخفي الخطوات':'اعرض الخطوات')):null,
+    help?div({className:'fade',background:'rgba(0,0,0,.25)',borderRadius:8,padding:12,marginTop:8,fontSize:12,color:C.dm,lineHeight:1.8},
+      div(null,'1) في AndroidManifest.xml جوه الـ Activity الرئيسية (ولازم android:exported="true") ضيف:'),
+      h('pre',{style:{direction:'ltr',textAlign:'left',whiteSpace:'pre-wrap',fontFamily:FM,fontSize:11,color:C.tx,background:'rgba(0,0,0,.3)',padding:10,borderRadius:6,margin:'8px 0'}},MANIFEST_SNIPPET),
+      div(null,'2) أعد بناء التطبيق وثبّته. 3) في أول ملف b2-tracker.html اكتب الـ applicationId في HASILTEE_PACKAGE.')):null);
+}
+
+// ─── GRAMMAR DRILL ───
+function GrammarDrill({drills,onDone,saved}){
+  const [idx,setIdx]=useState(0),[ans,setAns]=useState({});
+  if(!drills)return null;
+  if(saved!=null) return div({background:C.rdf,border:'1px solid rgba(200,116,100,.3)',borderRadius:12,padding:14,marginBottom:12},
+    span({fontFamily:FM,fontSize:10,color:C.rd,display:'block',marginBottom:8,letterSpacing:.5},'🧠 GRAMMAR DRILL — نتيجة محفوظة'),
+    div({display:'flex',alignItems:'center',gap:14},
+      div({fontSize:30,fontWeight:900,color:saved>=4?C.tl:saved>=3?C.am:C.rd},saved+'/5'),
+      div({fontSize:13,color:C.dm},saved>=4?'ممتاز! القاعدة راسخة 💪':saved>=3?'كويس — راجع الأخطاء':'راجع القاعدة وعود للـ Drill')));
+  const total=Object.keys(ans).length;
+  if(total===drills.length){
+    const score=Object.entries(ans).filter(([i,a])=>a===(drills[+i].ok?'t':'f')).length;
+    return div({className:'fade',background:C.rdf,border:'1px solid rgba(200,116,100,.35)',borderRadius:12,padding:14,marginBottom:12},
+      span({fontFamily:FM,fontSize:10,color:C.rd,display:'block',marginBottom:10,letterSpacing:.5},'🧠 GRAMMAR DRILL — النتيجة'),
+      div({display:'flex',alignItems:'center',gap:14,marginBottom:16},
+        div({fontSize:34,fontWeight:900,color:score>=4?C.tl:score>=3?C.am:C.rd},score+'/5'),
+        div({fontSize:13,color:C.dm},score>=4?'ممتاز! 💪':score>=3?'راجع الأخطاء 👇':'افتح British Council للمراجعة')),
+      ...drills.map((d,i)=>{const ok=ans[i]===(d.ok?'t':'f');
+        return div({key:i,marginBottom:10,padding:'10px 12px',
+          background:ok?'rgba(94,140,130,.1)':'rgba(200,116,100,.1)',
+          borderRadius:10,border:'1px solid '+(ok?'rgba(94,140,130,.4)':'rgba(200,116,100,.4)')},
+          div({display:'flex',gap:8,alignItems:'flex-start',marginBottom:ok?0:8},
+            span({fontSize:18,flexShrink:0},ok?'✅':'❌'),
+            span({fontSize:13,color:C.tx,fontStyle:'italic',lineHeight:1.6},'"'+d.s+'"')),
+          !ok?div({fontSize:12.5,color:C.tx,lineHeight:1.7,paddingRight:26,
+            whiteSpace:'pre-line'},d.ex):null);}),
+      btn({width:'100%',marginTop:12,padding:'12px 0',background:C.am,color:C.bg,border:'none',borderRadius:10,fontWeight:700,fontSize:14},()=>onDone(score),'حفظ النتيجة ✓'));
+  }
+  const q=drills[idx],answered=ans[idx]!==undefined,wasOk=answered&&ans[idx]===(q.ok?'t':'f');
+  return div({background:C.rdf,border:'1px solid rgba(200,116,100,.3)',borderRadius:12,padding:14,marginBottom:12},
+    div({display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12},
+      span({fontFamily:FM,fontSize:10,color:C.rd,letterSpacing:.5},'🧠 GRAMMAR DRILL'),
+      span({fontFamily:FM,fontSize:10,color:C.ft},(idx+1)+'/'+drills.length)),
+    div({background:'rgba(0,0,0,.2)',borderRadius:10,padding:'14px',marginBottom:14,
+      fontSize:15,color:C.tx,lineHeight:1.8,fontStyle:'italic',textAlign:'center'},'"'+q.s+'"'),
+    !answered?div({display:'grid',gridTemplateColumns:'1fr 1fr',gap:10},
+      btn({padding:'13px 0',background:'rgba(94,140,130,.15)',border:'2px solid '+C.tl,borderRadius:10,color:C.tl,fontWeight:700,fontSize:16},()=>setAns({...ans,[idx]:'t'}),'✓ صح'),
+      btn({padding:'13px 0',background:'rgba(200,116,100,.15)',border:'2px solid '+C.rd,borderRadius:10,color:C.rd,fontWeight:700,fontSize:16},()=>setAns({...ans,[idx]:'f'}),'✗ غلط')):
+    div({className:'fade'},
+      div({padding:'12px 14px',background:wasOk?'rgba(94,140,130,.12)':'rgba(200,116,100,.12)',
+        border:'2px solid '+(wasOk?C.tl:C.rd),borderRadius:10,marginBottom:12},
+        div({fontSize:20,marginBottom:8},wasOk?'✅ إجابتك صح!':'❌ الإجابة الصح:'),
+        div({fontSize:13,color:C.tx,lineHeight:1.7,whiteSpace:'pre-line'},q.ex)),
+      idx<drills.length-1?btn({width:'100%',padding:'11px 0',background:C.rs,border:'1px solid '+C.br,borderRadius:10,color:C.tx,fontWeight:700,fontSize:13},()=>setIdx(i=>i+1),'الجملة التالية →'):null));
+}
+
+// ─── CHECKPOINT ───
+function CheckpointFlow({data,saved,onSave}){
+  const [step,setStep]=useState(0),[scores,setScores]=useState(saved||{}),[inp,setInp]=useState('');
+  const icons={speaking:'🗣',listening:'🎧',vocabulary:'📚',grammar:'🧠'};
+  if(saved&&Object.keys(saved).length===data.qs.length) return div({background:C.puf,border:'1px solid '+C.pu,borderRadius:12,padding:16,marginBottom:14},
+    span({fontFamily:FM,fontSize:10,color:C.pu,display:'block',marginBottom:8,letterSpacing:.5},'🏁 CHECKPOINT — محفوظ'),
+    ...data.qs.map((q,i)=>div({display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(142,107,175,.2)',fontSize:13,color:C.dm},
+      span(null,(icons[q.type]||'📌')+' '+q.type),span({color:C.pu,fontFamily:FM,fontWeight:700},saved[i]+(q.input?'':'/5')))));
+  if(step>=data.qs.length) return div({className:'fade',background:C.puf,border:'1px solid '+C.pu,borderRadius:12,padding:16,marginBottom:14},
+    span({fontFamily:FM,fontSize:10,color:C.pu,display:'block',marginBottom:8},'🏁 CHECKPOINT مكتمل!'),
+    div({fontSize:14,fontWeight:700,color:C.tx,marginBottom:14},data.title),
+    ...data.qs.map((q,i)=>div({display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:'1px solid rgba(142,107,175,.2)',fontSize:13,color:C.dm},
+      span(null,(icons[q.type]||'📌')+' '+q.type),span({color:C.pu,fontFamily:FM,fontWeight:700},scores[i]+(q.input?'':'/5')))),
+    btn({width:'100%',marginTop:14,padding:'12px 0',background:C.pu,color:C.bg,border:'none',borderRadius:10,fontWeight:700,fontSize:14},()=>onSave(scores),'حفظ النتائج ✓'));
+  const q=data.qs[step];
+  return div({className:'fade',background:C.puf,border:'1px solid '+C.pu,borderRadius:12,padding:16,marginBottom:14},
+    div({display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12},
+      span({fontFamily:FM,fontSize:10,color:C.pu,letterSpacing:.5},'🏁 CHECKPOINT — '+(step+1)+'/'+data.qs.length),
+      span({fontSize:12,color:C.ft},data.title)),
+    div({fontSize:14,fontWeight:700,color:C.tx,marginBottom:14,lineHeight:1.6},q.q),
+    q.input?h(Fragment,null,
+      div({display:'flex',gap:10,alignItems:'center',marginBottom:14},
+        h('input',{type:'number',min:0,max:100,value:inp,onChange:e=>setInp(e.target.value),placeholder:'0',
+          style:{width:90,padding:'10px 14px',background:C.rs,border:'1px solid '+C.br,borderRadius:9,color:C.tx,fontSize:20,fontWeight:700,outline:'none',textAlign:'center'}}),
+        span({color:C.dm,fontSize:16},q.unit)),
+      btn({width:'100%',padding:'11px 0',background:inp?C.pu:'#3A3733',color:inp?C.bg:C.ft,border:'none',borderRadius:10,fontWeight:700,fontSize:14},
+        ()=>{if(!inp)return;setScores({...scores,[step]:inp+q.unit});setInp('');setTimeout(()=>setStep(s=>s+1),200);},'التالي →')):
+    div({display:'flex',flexDirection:'column',gap:8},...(q.labels||[]).map((l,i)=>
+      btn({padding:'11px 14px',background:C.rs,border:'1px solid '+C.br,borderRadius:10,color:C.dm,textAlign:'right',fontSize:13},
+        ()=>{setScores({...scores,[step]:i+1});setTimeout(()=>setStep(s=>s+1),350);},
+        span({color:C.pu,fontFamily:FM,fontWeight:700,marginLeft:8},i+1)+' — '+l))));
+}
+
+// ─── SPEAKING RATING ───
+function SpeakingRating({onSave,onSkip}){
+  const [p,setP]=useState(null),[ph,setPh]=useState(null),[ov,setOv]=useState(null),[secs,setSecs]=useState(0);
+  const ok=p&&ph&&ov;
+  function Row({label,val,set,opts}){return div({marginBottom:12},div({fontSize:12,color:C.ft,marginBottom:7},label),div({display:'flex',gap:5},...opts.map((o,i)=>btn({flex:1,padding:'8px 2px',fontSize:10,borderRadius:8,border:'1px solid '+(val===i+1?C.am:C.br),background:val===i+1?C.amf:'transparent',color:val===i+1?C.am:C.ft,lineHeight:1.4,textAlign:'center'},()=>set(i+1),(i+1)+'\n'+o))));}
+  return div({className:'fade',background:C.rs,border:'1px solid '+C.am,borderRadius:12,padding:16,marginBottom:14},
+    div({display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14},
+      span({fontFamily:FM,fontSize:10,color:C.am,letterSpacing:.5},'🗣 قيّم جلسة Speaking'),
+      btn({fontSize:11,color:C.ft},onSkip,'تخطَّ')),
+    h(Row,{label:'التوقف',val:p,set:setP,opts:['كتير','أحياناً','قليلاً','نادراً','ما وقفتش']}),
+    h(Row,{label:'عبارات جديدة',val:ph,set:setPh,opts:['ما استخدمتش','جملة','2-3','4-5','5+']}),
+    h(Row,{label:'التقييم العام',val:ov,set:setOv,opts:['صعب','مقبول','كويس','كويس جداً','ممتاز']}),
+    div({marginBottom:14},div({fontSize:12,color:C.ft,marginBottom:7},'كم ثانية تكلمت؟'),div({display:'flex',gap:6},...[30,45,60,90,120].map(s=>btn({flex:1,padding:'8px 0',fontSize:11,borderRadius:8,border:'1px solid '+(secs===s?C.tl:C.br),background:secs===s?C.tlf:'transparent',color:secs===s?C.tl:C.ft},()=>setSecs(s),s+'ث')))),
+    btn({width:'100%',padding:'11px 0',background:ok?C.am:'#3A3733',color:ok?C.bg:C.ft,border:'none',borderRadius:10,fontWeight:700,fontSize:14},()=>ok&&onSave({pauses:p,phrases:ph,overall:ov,secs,date:today()}),'حفظ التقييم'));
+}
+
+// ─── TASK CARD ───
+function TaskCard({t,pri,taskDone,onDone,plan,showWeak}){
+  const [open,setOpen]=useState(false);
+  if(!t)return null;
+  const sk=t.skill;
+  return div({background:taskDone?(t.c+'15'):C.sf,border:'1px solid '+(taskDone?t.c:C.br),borderRadius:12,padding:15,marginBottom:10,transition:'all .2s'},
+    div({display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10},
+      div({display:'flex',alignItems:'center',gap:10},
+        div({width:40,height:40,borderRadius:10,background:taskDone?t.c:(t.c+'22'),display:'flex',alignItems:'center',justifyContent:'center',fontSize:taskDone?16:22,color:taskDone?C.bg:'inherit'},taskDone?'✓':t.i),
+        div(null,span({fontSize:10,color:C.ft,fontFamily:FM,display:'block'},pri),span({fontSize:16,fontWeight:700,display:'block'},t.n))),
+      span({fontFamily:FM,fontSize:11,color:C.ft},t.dur+' دقيقة')),
+    div({fontSize:14,lineHeight:1.8,color:C.dm,marginBottom:6},t.desc),
+    // actions — always visible, no digging
+    sk==='listening'?h(ListeningLinks,{plan}):null,
+    sk==='grammar'?h(GrammarLinks,{plan}):null,
+    sk==='speaking'?h(ChatGPTBtn,{text:plan.aiPrompt,label:'📋 انسخ البرومبت وافتح ChatGPT'}):null,
+    sk==='writing'?h(ChatGPTBtn,{text:'Correct my English text below and explain each error in Arabic:\n\n',label:'📋 انسخ طلب التصحيح وافتح ChatGPT'}):null,
+    // timer (optional)
+    div({marginTop:12},
+      btn({background:'transparent',border:'1px solid '+C.br,borderRadius:7,padding:'5px 11px',fontSize:12,color:C.ft},()=>setOpen(o=>!o),open?'▲ اخفي المؤقت':'⏱ مؤقت الجلسة'),
+      open?div({className:'fade',marginTop:10},h(Timer,{mins:t.dur})):null),
+    !taskDone?btn({width:'100%',padding:'12px 0',background:t.c,color:C.bg,border:'none',borderRadius:10,fontWeight:700,fontSize:15,marginTop:12},onDone,'✓ أنجزت'):
+    div({display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12},
+      span({fontSize:13,color:t.c,fontWeight:700},'تم ✓'),
+      t.taskId==='core'?btn({fontSize:11,color:C.ft,padding:'5px 10px',border:'1px solid '+C.br,borderRadius:8},showWeak,'+ نقطة ضعف'):null));
+}
+
+// ─── TODAY VIEW ───
+function TodayView({state,setState}){
+  const plan=getDayPlan(state.currentDay);
+  const td=today();
+  const rawRec=state.dailyRecords[td];
+  const rec=(rawRec&&rawRec.day===state.currentDay)?rawRec:
+    {date:td,day:state.currentDay,completedTasks:[],energy:null,notes:'',weaknesses:[],skillsUsed:[],speakingRatings:[],grammarDrillScore:null,checkpointScores:null};
+  const st=cSt(rec.completedTasks),done=isDone(st);
+  const [weakOpen,setWeakOpen]=useState(false),[showSpk,setShowSpk]=useState(false);
+  const [showDrill,setShowDrill]=useState(false),[showCP,setShowCP]=useState(false);
+  const [notesOpen,setNotesOpen]=useState(false),[minOpen,setMinOpen]=useState(false);
+  const [toast,setToast]=useState('');
+  const fileRef=useRef();
+  const gap=gapDays(state.lastCompleted);
+
+  function tk(msg){setToast(msg);setTimeout(()=>setToast(''),2400);}
+  function saveRec(upd){const nr={...rec,...upd};const ns={...state,dailyRecords:{...state.dailyRecords,[td]:nr}};setState(ns);saveS(ns);return nr;}
+  function doTask(tid){
+    if(rec.completedTasks?.includes(tid))return;
+    const tasks=[...(rec.completedTasks||[]),tid];
+    const sk=plan[tid]?.skill||plan.minimum.skill;
+    const used=[...new Set([...(rec.skillsUsed||[]),sk])];
+    const nr={...rec,completedTasks:tasks,skillsUsed:used};
+    const ns={...state,dailyRecords:{...state.dailyRecords,[td]:nr},lastCompleted:td};
+    setState(ns);saveS(ns);
+    if(sk==='speaking'&&tid!=='minimum')setTimeout(()=>setShowSpk(true),400);
+    tk(tid==='minimum'?'Minimum تم ✓ 🎯':tid==='optional'?'★ Strong Day!':'تم ✓ 💪');
+  }
+
+  if(!plan)return div({textAlign:'center',padding:'60px 20px',color:C.dm},
+    div({fontSize:52,marginBottom:16},'🎉'),div({fontSize:20,fontWeight:700,color:C.tx,marginBottom:8},'أنجزت الـ 84 يوم!'),div({fontSize:14},'وصلت B2!'));
+
+  return div({padding:'16px 16px 96px'},
+    // Header
+    div({display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12},
+      div(null,
+        span({fontFamily:FM,fontSize:11,color:C.am,letterSpacing:.5,display:'block'},'DAY '+plan.day+'/84 · W'+plan.week+' · Phase '+plan.phase),
+        span({fontSize:19,fontWeight:900,display:'block',marginTop:3},plan.theme),
+        span({fontSize:12,color:C.ft,display:'block',marginTop:2},plan.focus)),
+      h(Badge,{st})),
+    // Progress
+    div({marginBottom:14},h(Bar,{v:state.currentDay-1,t:84}),span({fontFamily:FM,fontSize:10,color:C.ft,display:'block',marginTop:3},(state.currentDay-1)+'/84')),
+    // Recovery
+    gap>=3&&!done&&state.lastCompleted?div({borderRight:'3px solid '+C.am,borderRadius:8,padding:'11px 14px',marginBottom:14,fontSize:13,color:C.dm,lineHeight:1.7,background:C.sf},
+      gap>=7?'فاتت '+gap+' أيام — Minimum اليوم بس، وبعدين اكمل تدريجياً.':'فاتت '+gap+' أيام — Minimum اليوم يكفي ✓'):null,
+    // Energy selector
+    !rec.energy&&!done?div({className:'fade',background:C.sf,border:'1px solid '+C.br,borderRadius:12,padding:16,marginBottom:14},
+      div({fontSize:14,fontWeight:700,marginBottom:12},'طاقتك النهارده؟'),
+      div({display:'flex',gap:8},...[{v:'low',e:'🔋',t:'Low',d:'5 دق فقط'},{v:'normal',e:'⚡',t:'Normal',d:'20-25 دق'},{v:'high',e:'🚀',t:'High',d:'35-40 دق'}].map(o=>
+        btn({flex:1,background:C.rs,border:'1px solid '+C.br,borderRadius:10,padding:'10px 6px',lineHeight:1.6,color:C.dm,textAlign:'center'},()=>saveRec({energy:o.v}),
+          div({fontSize:22,marginBottom:4},o.e),div({fontWeight:700,color:C.tx,fontSize:13},o.t),div({fontSize:10},o.d))))):null,
+    // Checkpoint
+    plan.checkpointData?div({marginBottom:14},
+      !showCP&&!rec.checkpointScores?btn({width:'100%',padding:'13px 0',background:C.puf,border:'1px solid '+C.pu,borderRadius:10,color:C.pu,fontWeight:700,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',gap:8},()=>setShowCP(true),'🏁 ابدأ Checkpoint Assessment'):null,
+      (showCP||rec.checkpointScores)?h(CheckpointFlow,{data:plan.checkpointData,saved:rec.checkpointScores,onSave:s=>{saveRec({checkpointScores:s});setShowCP(false);tk('Checkpoint محفوظ ✓');}}):null):null,
+    // Goal
+    div({background:C.rs,border:'1px solid '+C.br,borderRadius:12,padding:16,marginBottom:14},
+      span({fontFamily:FM,fontSize:10,color:C.ft,display:'block',marginBottom:6,letterSpacing:.5},'🎯 هدف اليوم'),
+      div({fontSize:14,lineHeight:1.85,color:C.tx},'"'+plan.goal+'"')),
+    // Grammar section (always visible)
+    div({background:C.rdf,border:'1px solid rgba(200,116,100,.3)',borderRadius:12,padding:14,marginBottom:14},
+      span({fontFamily:FM,fontSize:10,color:C.rd,display:'block',marginBottom:6,letterSpacing:.5},'📌 قاعدة اليوم — '+plan.grammar),
+      div({fontSize:13,color:C.dm,lineHeight:1.7,marginBottom:10},plan.grammarTip),
+      h(GrammarLinks,{plan}),
+      // Drill
+      div({marginTop:12},
+        !showDrill&&rec.grammarDrillScore==null?btn({width:'100%',padding:'10px 0',background:'rgba(200,116,100,.1)',border:'1px solid rgba(200,116,100,.4)',borderRadius:9,color:C.rd,fontSize:13,fontWeight:700},()=>setShowDrill(true),'🧠 ابدأ Quick Drill — 5 جمل صح/غلط'):null,
+        (showDrill||rec.grammarDrillScore!=null)?h(GrammarDrill,{drills:plan.grammarDrill,saved:rec.grammarDrillScore,onDone:score=>{saveRec({grammarDrillScore:score});setShowDrill(false);tk('Drill: '+score+'/5 ✓');}}):null)),
+    // Speaking rating
+    showSpk?h(SpeakingRating,{onSave:r=>{const rs=[...(rec.speakingRatings||[]),r];saveRec({speakingRatings:rs});setShowSpk(false);tk('تقييم Speaking محفوظ ✓');},onSkip:()=>setShowSpk(false)}):null,
+    // Speaking history
+    !showSpk&&(rec.speakingRatings||[]).length>0?div({background:C.sf,border:'1px solid '+C.br,borderRadius:10,padding:'11px 13px',marginBottom:12},
+      span({fontFamily:FM,fontSize:10,color:C.am,display:'block',marginBottom:6,letterSpacing:.5},'🗣 Speaking اليوم'),
+      ...(rec.speakingRatings||[]).map((r,i)=>div({fontSize:12,color:C.dm,marginBottom:3},'جلسة '+(i+1)+': طلاقة '+r.pauses+'/5 · عبارات '+r.phrases+'/5 · إجمالي '+r.overall+'/5'+(r.secs?' · '+r.secs+'ث':''))),
+      btn({marginTop:8,fontSize:11,color:C.am,padding:'5px 10px',border:'1px solid rgba(201,151,75,.35)',borderRadius:8},()=>setShowSpk(true),'+ جلسة تانية')):null,
+    // Tasks
+    h(TaskCard,{t:plan.core,pri:'الأساسي',taskDone:rec.completedTasks?.includes(plan.core.taskId),onDone:()=>doTask(plan.core.taskId),plan,state,setState,showWeak:()=>setWeakOpen(p=>!p)}),
+    rec.energy!=='low'?h(TaskCard,{t:plan.secondary,pri:'الإضافي',taskDone:rec.completedTasks?.includes(plan.secondary.taskId),onDone:()=>doTask(plan.secondary.taskId),plan,state,setState}):null,
+    rec.energy==='high'?h(TaskCard,{t:plan.optional,pri:'اختياري ★',taskDone:rec.completedTasks?.includes(plan.optional.taskId),onDone:()=>doTask(plan.optional.taskId),plan,state,setState}):null,
+    // Weakness
+    weakOpen?div({className:'fade',background:C.rs,border:'1px solid '+C.br,borderRadius:10,padding:14,marginBottom:14},
+      div({fontSize:13,color:C.dm,marginBottom:10},'أكبر مشكلة في Speaking اليوم؟'),
+      div({display:'flex',flexWrap:'wrap',gap:8},...['Vocabulary gaps','Grammar errors','Fluency/pausing','Pronunciation','Comprehension'].map(w=>
+        btn({padding:'7px 13px',background:C.sf,border:'1px solid '+C.br,borderRadius:20,fontSize:12,color:C.dm},()=>{saveRec({weaknesses:[...(rec.weaknesses||[]),w]});setWeakOpen(false);tk('تم: '+w);},w)))):null,
+    // Minimum
+    !done&&!rec.completedTasks?.includes('minimum')?div({marginBottom:14},
+      btn({width:'100%',padding:'11px 0',background:'transparent',border:'1px dashed '+C.br,borderRadius:10,color:C.ft,fontSize:13},()=>setMinOpen(p=>!p),'⚡ وقتي ضيق — Minimum بس (5 دق)'),
+      minOpen?div({className:'fade',marginTop:8,background:C.rs,border:'1px solid '+C.br,borderRadius:10,padding:14},
+        div({display:'flex',gap:10,alignItems:'flex-start',marginBottom:12},
+          span({fontSize:28},plan.minimum.i),
+          div(null,div({fontSize:14,fontWeight:700,color:C.tx,marginBottom:4},plan.minimum.n+' — '+plan.minimum.dur+' دقايق'),div({fontSize:13,color:C.dm,lineHeight:1.7},plan.minimum.desc))),
+        plan.minimum.skill==='speaking'?h(ChatGPTBtn,{text:plan.aiPrompt,label:'📋 انسخ البرومبت وافتح ChatGPT'}):null,
+        plan.minimum.skill==='listening'?h(ListeningLinks,{plan}):null,
+        plan.minimum.skill==='grammar'?h(GrammarLinks,{plan}):null,
+        btn({width:'100%',marginTop:12,padding:'11px 0',background:plan.minimum.c,color:C.bg,border:'none',borderRadius:10,fontWeight:700,fontSize:14},()=>{doTask('minimum');setMinOpen(false);},'✓ أنجزت Minimum')):null):null,
+    // Upgrade hint
+    rec.completedTasks?.includes('minimum')&&!rec.completedTasks?.includes(plan.core.taskId)?div({background:C.tlf,borderRadius:9,padding:'11px 14px',marginBottom:14,fontSize:13,color:C.tl},'Minimum تم ✓ — عندك وقت تاني؟ أكمل الأساسي 💪'):null,
+    // Advance
+    done&&state.currentDay<84?btn({className:'fade',width:'100%',padding:'14px 0',background:C.am,color:C.bg,border:'none',borderRadius:10,fontWeight:900,fontSize:16,marginBottom:14},()=>{const ns={...state,currentDay:state.currentDay+1};setState(ns);saveS(ns);tk('اليوم '+(state.currentDay+1)+' 🎯');},'انتقل لليوم '+(state.currentDay+1)+' →'):null,
+    // Vocab mission
+    div({background:C.sf,border:'1px solid '+C.br,borderRadius:10,padding:'12px 14px',marginBottom:10},
+      span({fontFamily:FM,fontSize:10,color:C.bl,display:'block',marginBottom:5,letterSpacing:.5},'📚 VOCAB MISSION'),
+      div({fontSize:13,color:C.dm,lineHeight:1.7},plan.vocabMission),
+      h(HasilteeBtn)),
+    // Notes
+    btn({width:'100%',padding:'11px 14px',background:C.sf,border:'1px solid '+C.br,borderRadius:10,color:C.dm,fontSize:13,display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8},()=>setNotesOpen(p=>!p),'📝 ملاحظات اليوم',span({fontSize:14},notesOpen?'▲':'▼')),
+    notesOpen?h('textarea',{defaultValue:rec.notes||'',onBlur:e=>saveRec({notes:e.target.value}),placeholder:'وقفت فين؟ إيه اللي صعّبك؟ إيه اللي اتحسن؟',style:{width:'100%',padding:'12px 14px',background:C.rs,border:'1px solid '+C.br,borderRadius:10,color:C.tx,fontSize:13.5,lineHeight:1.7,resize:'vertical',minHeight:90,outline:'none',marginBottom:10,display:'block'}}):null,
+    // Export/Import
+    div({display:'flex',gap:8,marginBottom:14},
+      btn({flex:1,padding:'10px 0',background:C.sf,border:'1px solid '+C.br,borderRadius:9,color:C.dm,fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',gap:6},()=>{tk(exportData(state));},'⬇ Backup'),
+      btn({flex:1,padding:'10px 0',background:C.sf,border:'1px solid '+C.br,borderRadius:9,color:C.dm,fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',gap:6},()=>fileRef.current?.click(),'⬆ استيراد'),
+      h('input',{ref:fileRef,type:'file',accept:'.json',style:{display:'none'},onChange:e=>{const f=e.target.files?.[0];if(!f)return;importData(f,data=>{if(!data){tk('❌ ملف غير صالح — بياناتك الحالية ما اتغيرتش');return;}setState(data);saveS(data);tk('✓ تم الاستيراد!');});e.target.value=''}})),
+    h(Toast,{msg:toast}));
+}
+
+// ─── STATS VIEW ───
+function StatsView({state,setState}){
+  const recs=Object.values(state.dailyRecords);
+  const [toast,setToast]=useState('');
+  const fileRef=useRef();
+  function tk(msg){setToast(msg);setTimeout(()=>setToast(''),2200);}
+  const td=today(),wk=Math.ceil(state.currentDay/7);
+  const grid=useMemo(()=>{const d=[];for(let i=13;i>=0;i--){const dt=new Date();dt.setDate(dt.getDate()-i);const ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');const r=state.dailyRecords[ds];d.push({ds,st:r?cSt(r.completedTasks):'empty'});}return d;},[state.dailyRecords]);
+  const done14=grid.filter(d=>isDone(d.st)).length;
+  const allRatings=recs.flatMap(r=>r.speakingRatings||[]);
+  const avgF=allRatings.length?+(allRatings.reduce((a,b)=>a+(b.pauses||0),0)/allRatings.length).toFixed(1):null;
+  const drillR=recs.filter(r=>r.grammarDrillScore!=null);
+  const avgD=drillR.length?+(drillR.reduce((a,r)=>a+r.grammarDrillScore,0)/drillR.length).toFixed(1):null;
+  const wRecs=recs.filter(r=>Math.ceil((r.day||1)/7)===wk);
+  return div({padding:'16px 16px 96px'},
+    div({background:C.sf,border:'1px solid '+C.br,borderRadius:14,padding:18,marginBottom:14},
+      span({fontFamily:FM,fontSize:11,color:C.am,display:'block',marginBottom:8,letterSpacing:.5},'OVERALL PROGRESS'),
+      div({fontSize:38,fontWeight:900,marginBottom:6},(state.currentDay-1),span({style:{fontSize:15,color:C.ft}},'/84 يوم')),
+      h(Bar,{v:state.currentDay-1,t:84}),
+      span({fontFamily:FM,fontSize:10,color:C.ft,display:'block',marginTop:6},'Week '+wk+' · Phase '+(WC[Math.min(wk,12)-1]?.ph||1))),
+    div({display:'flex',gap:8,marginBottom:14},
+      btn({flex:1,padding:'10px 0',background:C.sf,border:'1px solid '+C.br,borderRadius:9,color:C.dm,fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',gap:6},()=>{tk(exportData(state));},'⬇ تحميل Backup'),
+      btn({flex:1,padding:'10px 0',background:C.sf,border:'1px solid '+C.br,borderRadius:9,color:C.dm,fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',gap:6},()=>fileRef.current?.click(),'⬆ استيراد'),
+      h('input',{ref:fileRef,type:'file',accept:'.json',style:{display:'none'},onChange:e=>{const f=e.target.files?.[0];if(!f)return;importData(f,data=>{if(!data){tk('❌ ملف غير صالح — بياناتك الحالية ما اتغيرتش');return;}setState(data);saveS(data);tk('✓ تم الاستيراد!');});e.target.value=''}})),
+    div({background:C.sf,border:'1px solid '+C.br,borderRadius:14,padding:15,marginBottom:14},
+      div({display:'flex',justifyContent:'space-between',marginBottom:10},span({fontFamily:FM,fontSize:11,color:C.dm},'الاستمرارية — 14 يوم'),span({fontFamily:FM,fontSize:11,color:C.am},done14+'/14 ('+Math.round(done14/14*100)+'%)')),
+      div({display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:5,marginBottom:10},...grid.map((d,i)=>{const bg=d.st==='strong'?C.pu:d.st==='normal'?C.am:d.st==='partial'?C.amd:d.st==='minimum'?C.tl:C.rs;return div({key:i,height:30,borderRadius:6,background:bg,border:d.ds===td?'2px solid '+C.tx:'1px solid '+bg});})),
+      div({display:'flex',gap:12,fontSize:11,color:C.ft},...[{c:C.tl,l:'Min'},{c:C.am,l:'Normal'},{c:C.pu,l:'Strong'},{c:C.rs,l:'—'}].map(x=>div({display:'flex',alignItems:'center',gap:5},div({width:10,height:10,borderRadius:3,background:x.c}),x.l)))),
+    div({display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:14},...[
+      {n:wRecs.filter(r=>isDone(cSt(r.completedTasks))).length,l:'أيام الأسبوع',c:C.am},
+      {n:avgF!==null?avgF+'/5':'-',l:'طلاقة Speaking',c:C.tl},
+      {n:avgD!==null?avgD+'/5':'-',l:'Grammar Drill',c:C.rd},
+    ].map(s=>div({background:C.sf,border:'1px solid '+C.br,borderRadius:10,padding:'12px 8px',textAlign:'center'},div({fontSize:22,fontWeight:900,color:s.c},s.n),div({fontSize:10,color:C.ft,marginTop:3},s.l)))),
+    h(Toast,{msg:toast}));
+}
+
+// ─── HISTORY VIEW ───
+function HistoryView({state}){
+  const recs=Object.values(state.dailyRecords).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const [exp,setExp]=useState(null);
+  if(!recs.length)return div({padding:'60px 20px',textAlign:'center',color:C.ft,fontSize:14},'مفيش سجلات بعد!');
+  return div({padding:'16px 16px 96px'},
+    span({fontFamily:FM,fontSize:11,color:C.dm,display:'block',marginBottom:12},recs.length+' يوم مسجّل'),
+    div({display:'flex',flexDirection:'column',gap:8},...recs.map((r)=>{
+      const st=cSt(r.completedTasks),plan=getDayPlan(r.day),isExp=exp===r.date;
+      return div({key:r.date},
+        btn({width:'100%',background:C.sf,border:'1px solid '+C.br,borderRadius:10,padding:'13px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',color:C.tx},()=>setExp(isExp?null:r.date),
+          div({textAlign:'right'},
+            span({fontFamily:FM,fontSize:10,color:C.ft,display:'block',marginBottom:3},r.date),
+            span({fontSize:14,fontWeight:700,display:'block'},'يوم '+r.day+' — '+(plan?.theme||'')),
+            div({fontSize:11,color:C.ft,marginTop:3},(r.speakingRatings?.length?'🗣'+r.speakingRatings.length+' ':''),(r.grammarDrillScore!=null?'🧠'+r.grammarDrillScore+'/5 ':''))),
+          div({display:'flex',alignItems:'center',gap:10},h(Badge,{st}),span({fontSize:12,color:C.ft},isExp?'▲':'▼'))),
+        isExp?div({className:'fade',background:C.rs,border:'1px solid '+C.br,borderTop:'none',borderRadius:'0 0 10px 10px',padding:'13px 14px'},
+          plan?div({fontSize:13,color:C.dm,marginBottom:8,lineHeight:1.7},'الهدف: '+plan.goal):null,
+          (r.speakingRatings||[]).map((rt,j)=>div({fontSize:12,color:C.am,marginBottom:3,key:j},'Speaking '+(j+1)+': طلاقة '+rt.pauses+'/5 · عبارات '+rt.phrases+'/5 · إجمالي '+rt.overall+'/5')),
+          r.grammarDrillScore!=null?div({fontSize:12,color:C.rd,marginTop:4},'Grammar Drill: '+r.grammarDrillScore+'/5'):null,
+          (r.weaknesses||[]).length?div({fontSize:12,color:C.rd,marginTop:4},'نقاط الضعف: '+r.weaknesses.join(' · ')):null,
+          r.notes?div({fontSize:13,color:C.dm,borderTop:'1px solid '+C.br,paddingTop:10,marginTop:10,lineHeight:1.7},r.notes):null):null);})));
+}
+
+// ─── APP ───
+function App(){
+  const [state,setState]=useState(()=>loadS());
+  const [screen,setScreen]=useState('today');
+  const [saveFail,setSaveFail]=useState(false);
+  useEffect(()=>{const f=()=>setSaveFail(true);window.addEventListener('b2-save-failed',f);return()=>window.removeEventListener('b2-save-failed',f);},[]);
+  useEffect(()=>{saveS(state);},[state]);
+  const tabs=[{id:'today',l:'اليوم',ic:'🏠'},{id:'stats',l:'تقدم',ic:'📊'},{id:'history',l:'السجل',ic:'🕐'}];
+  return h('div',{style:{maxWidth:480,margin:'0 auto',minHeight:'100vh'}},
+    saveFail?div({position:'fixed',top:0,left:0,right:0,zIndex:400,background:C.rd,color:C.bg,padding:'10px 14px',fontSize:13,fontWeight:700,textAlign:'center'},'⚠️ تعذّر حفظ بياناتك على الجهاز — خد Backup دلوقتي'):null,
+    h('div',{style:{height:'100vh',overflowY:'auto',paddingBottom:64}},
+      screen==='today'?h(TodayView,{state,setState}):
+      screen==='stats'?h(StatsView,{state,setState}):
+      h(HistoryView,{state})),
+    h('div',{style:{position:'fixed',bottom:0,left:0,right:0,background:C.bg,borderTop:'1px solid '+C.br,display:'flex',paddingBottom:'env(safe-area-inset-bottom,0px)',zIndex:100}},
+      ...tabs.map(t=>btn({flex:1,padding:'11px 0 9px',display:'flex',flexDirection:'column',alignItems:'center',gap:3,color:screen===t.id?C.am:C.ft},()=>setScreen(t.id),
+        h('span',{style:{fontSize:21}},t.ic),h('span',{style:{fontSize:10,fontWeight:screen===t.id?700:400}},t.l)))));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
+</script>
+</body>
+</html>
