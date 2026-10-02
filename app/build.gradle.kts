@@ -1,4 +1,5 @@
 import java.net.URL
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -27,7 +28,7 @@ val downloadVendorJs by tasks.registering {
             val target = File(vendorDir, name)
             if (target.exists() && target.length() > 5000L) continue
             try {
-                java.net.URL(url).openStream().use { input ->
+                URL(url).openStream().use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
                 }
                 if (target.length() <= 5000L) {
